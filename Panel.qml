@@ -77,6 +77,16 @@ Panel {
   function markDisconnected(raw) {
     connected = false
     lastError = Model.errorStatus(raw)
+    pendingSet = null
+  }
+
+  // A bar surface exists per monitor, so relay to every live instance of this
+  // widget — otherwise a change made on one screen leaves the others stale.
+  function broadcast(method) {
+    var items = bar && typeof bar.moduleWidgets === "function" ? bar.moduleWidgets(moduleName) : [root]
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && typeof items[i][method] === "function") items[i][method]()
+    }
   }
 
   function applyLocal(name, value) {
@@ -131,6 +141,11 @@ Panel {
     stdout: StdioCollector { id: getStdout; waitForEnd: true; onStreamFinished: root._getOut = text }
     stderr: StdioCollector { id: getStderr; waitForEnd: true; onStreamFinished: root._getErr = text }
     onExited: function(exitCode) {
+      if (root.pendingSet && !setProc.running) {
+        var queued = root.pendingSet
+        root.pendingSet = null
+        root.runSet(queued.name, queued.value)
+      }
       if (root.activeFetchGen !== root.fetchGen) return
       var raw = String(getStdout.text || root._getOut || "") + "\n" + String(getStderr.text || root._getErr || "")
       if (exitCode !== 0) {
@@ -162,7 +177,9 @@ Panel {
         var pending = root.pendingSet
         root.pendingSet = null
         root.runSet(pending.name, pending.value)
+        return
       }
+      root.broadcast("refresh")
     }
   }
 
