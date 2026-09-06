@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.kaz.omarchy-inzone-buds",
+  "name": "Omarchy INZONE Buds",
+  "version": "1.0.0",
+  "author": "kaz",
+  "license": "MIT",
+  "description": "ANC, hardware volume, mix, sidetone, and battery for Sony INZONE Buds via zoneout",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Omarchy INZONE Buds",
+    "description": "ANC, volume, mix, and battery for INZONE Buds",
+    "category": "Audio",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
