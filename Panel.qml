@@ -82,10 +82,12 @@ Panel {
 
   // A bar surface exists per monitor, so relay to every live instance of this
   // widget — otherwise a change made on one screen leaves the others stale.
+  // Extra arguments are forwarded to the target method.
   function broadcast(method) {
+    var args = Array.prototype.slice.call(arguments, 1)
     var items = bar && typeof bar.moduleWidgets === "function" ? bar.moduleWidgets(moduleName) : [root]
     for (var i = 0; i < items.length; i++) {
-      if (items[i] && typeof items[i][method] === "function") items[i][method]()
+      if (items[i] && typeof items[i][method] === "function") items[i][method].apply(items[i], args)
     }
   }
 
@@ -150,11 +152,17 @@ Panel {
       var raw = String(getStdout.text || root._getOut || "") + "\n" + String(getStderr.text || root._getErr || "")
       if (exitCode !== 0) {
         root.markDisconnected(raw)
+        root.broadcast("markDisconnected", raw)
         return
       }
       var status = Model.parseGetAll(root._getOut || getStdout.text)
-      if (status.ok) root.applyStatus(status)
-      else root.markDisconnected(raw)
+      if (status.ok) {
+        root.applyStatus(status)
+        root.broadcast("applyStatus", status)
+      } else {
+        root.markDisconnected(raw)
+        root.broadcast("markDisconnected", raw)
+      }
     }
   }
 
