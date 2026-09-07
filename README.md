@@ -25,7 +25,7 @@ omarchy bar move io.github.kaz.omarchy-inzone-buds --section right
 - Arrow keys in the panel: cycle ANC
 - Escape: close
 
-Snapshot on start and on panel open. Settings writes are optimistic (`zoneout --set`). No polling.
+Snapshot on start and on panel open. Settings writes are optimistic (`zoneout --set`). Adaptive polling: every 10 s while connected (battery), every 3 s while disconnected (reconnect detection).
 
 ## Dependencies
 

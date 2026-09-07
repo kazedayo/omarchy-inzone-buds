@@ -191,6 +191,20 @@ Panel {
     }
   }
 
+  // Adaptive poll: fast reconnect probe while down, slow battery refresh
+  // while up. One instance polls (moduleWidgets order); broadcast() syncs
+  // the rest. refresh() no-ops while a fetch is already running.
+  Timer {
+    interval: root.connected ? 10000 : 3000
+    repeat: true
+    running: true
+    onTriggered: {
+      var items = root.bar && typeof root.bar.moduleWidgets === "function" ? root.bar.moduleWidgets(root.moduleName) : [root]
+      if (items[0] !== root) return
+      root.refresh()
+    }
+  }
+
   BarIconButton {
     id: button
     anchors.fill: parent
