@@ -78,6 +78,10 @@ Panel {
     connected = false
     lastError = Model.errorStatus(raw)
     pendingSet = null
+    battery = null
+    batteryLeft = null
+    batteryRight = null
+    batteryCase = null
   }
 
   // A bar surface exists per monitor, so relay to every live instance of this
