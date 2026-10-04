@@ -9,6 +9,10 @@ Panel {
   id: root
   moduleName: "io.github.kaz.omarchy-inzone-buds"
   ipcTarget: "io.github.kaz.omarchy-inzone-buds"
+  // Hide the bar entry while the buds are away — the bar slot collapses to
+  // zero width (same pattern as the built-in Tray widget). The poll timer
+  // keeps running so the icon reappears on reconnect.
+  visible: connected
 
   property bool connected: false
   property string deviceName: "INZONE Buds"
@@ -82,6 +86,7 @@ Panel {
     batteryLeft = null
     batteryRight = null
     batteryCase = null
+    if (opened) close()
   }
 
   // A bar surface exists per monitor, so relay to every live instance of this
