@@ -31,10 +31,6 @@ Panel {
   property int activeFetchGen: 0
   // ponytail: one pending HID write; queue-per-field if overlapping sliders lag
   property var pendingSet: null
-  property string _getOut: ""
-  property string _getErr: ""
-  property string _setOut: ""
-  property string _setErr: ""
 
   readonly property var ncModes: [
     { id: 0, label: "Off" },
@@ -53,8 +49,6 @@ Panel {
   function refresh() {
     if (getProc.running || setProc.running) return
     activeFetchGen = ++fetchGen
-    _getOut = ""
-    _getErr = ""
     getProc.running = true
   }
 
@@ -125,8 +119,6 @@ Panel {
   }
 
   function runSet(name, value) {
-    _setOut = ""
-    _setErr = ""
     setProc.command = [root.zoneoutBin, "--device", "buds", "--set", name, String(value)]
     setProc.running = true
   }
@@ -149,8 +141,8 @@ Panel {
     id: getProc
     running: false
     command: [root.zoneoutBin, "--device", "buds", "--get-all"]
-    stdout: StdioCollector { id: getStdout; waitForEnd: true; onStreamFinished: root._getOut = text }
-    stderr: StdioCollector { id: getStderr; waitForEnd: true; onStreamFinished: root._getErr = text }
+    stdout: StdioCollector { id: getStdout; waitForEnd: true }
+    stderr: StdioCollector { id: getStderr; waitForEnd: true }
     onExited: function(exitCode) {
       if (root.pendingSet && !setProc.running) {
         var queued = root.pendingSet
@@ -158,13 +150,13 @@ Panel {
         root.runSet(queued.name, queued.value)
       }
       if (root.activeFetchGen !== root.fetchGen) return
-      var raw = String(getStdout.text || root._getOut || "") + "\n" + String(getStderr.text || root._getErr || "")
+      var raw = getStdout.text + "\n" + getStderr.text
       if (exitCode !== 0) {
         root.markDisconnected(raw)
         root.broadcast("markDisconnected", raw)
         return
       }
-      var status = Model.parseGetAll(root._getOut || getStdout.text)
+      var status = Model.parseGetAll(getStdout.text)
       if (status.ok) {
         root.applyStatus(status)
         root.broadcast("applyStatus", status)
@@ -179,10 +171,10 @@ Panel {
     id: setProc
     running: false
     command: [root.zoneoutBin, "--device", "buds", "--set", "volume", "0"]
-    stdout: StdioCollector { id: setStdout; waitForEnd: true; onStreamFinished: root._setOut = text }
-    stderr: StdioCollector { id: setStderr; waitForEnd: true; onStreamFinished: root._setErr = text }
+    stdout: StdioCollector { id: setStdout; waitForEnd: true }
+    stderr: StdioCollector { id: setStderr; waitForEnd: true }
     onExited: function(exitCode) {
-      var raw = String(setStdout.text || root._setOut || "") + "\n" + String(setStderr.text || root._setErr || "")
+      var raw = setStdout.text + "\n" + setStderr.text
       if (exitCode !== 0) {
         root.pendingSet = null
         root.markDisconnected(raw)
@@ -218,8 +210,7 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    opacity: root.connected ? 1 : 0.45
-    tooltipText: root.connected ? root.deviceName : "INZONE Buds"
+    tooltipText: root.deviceName
     iconComponent: Component {
       Item {
         InzoneIcon {
@@ -588,31 +579,31 @@ Panel {
     }
   }
 
-  component InfoPair: Row {
+  component InfoPair: Item {
     property string label: ""
     property string value: ""
 
     width: parent.width
-    spacing: Style.space(8)
+    height: labelItem.implicitHeight
 
     Text {
+      id: labelItem
       textFormat: Text.PlainText
       text: label
       color: root.bar.foreground
       opacity: 0.6
       font.family: root.bar.fontFamily
       font.pixelSize: Style.font.bodySmall
+      anchors.left: parent.left
     }
-    Item {
-      width: Math.max(0, parent.width - parent.children[0].implicitWidth - parent.children[2].implicitWidth - parent.spacing * 2)
-      height: 1
-    }
+
     Text {
       textFormat: Text.PlainText
       text: value
       color: root.bar.foreground
       font.family: root.bar.fontFamily
       font.pixelSize: Style.font.bodySmall
+      anchors.right: parent.right
     }
   }
 }

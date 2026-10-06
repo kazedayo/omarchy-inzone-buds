@@ -60,10 +60,7 @@ function parseGetAll(raw) {
 
 function clamp(value, min, max) {
   var n = parseInt(value, 10)
-  if (!isFinite(n)) n = min
-  if (n < min) return min
-  if (n > max) return max
-  return n
+  return isFinite(n) ? Math.max(min, Math.min(max, n)) : min
 }
 
 function ncLabel(mode) {
@@ -86,6 +83,5 @@ function errorStatus(raw) {
   var text = String(raw || "")
   if (/udev|permission/i.test(text)) return "Need udev access"
   if (/not found|No supported|Could not open/i.test(text)) return "Not connected"
-  if (!text) return "Not connected"
   return "Not connected"
 }
