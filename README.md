@@ -25,7 +25,7 @@ omarchy bar move io.github.kaz.omarchy-inzone-buds --section right
 - Arrow keys in the panel: cycle ANC
 - Escape: close
 
-Snapshot on start and on panel open. Settings writes are optimistic (`zoneout --set`). Adaptive polling: every 10 s while connected (battery), every 3 s while disconnected (reconnect detection).
+Instant state updates via `zoneout --monitor` — including changes made on the buds themselves or by other tools; the stream exiting doubles as instant disconnect detection (it runs unbuffered: `PYTHONUNBUFFERED=1`). Settings writes are optimistic (`zoneout --set`). Polling only covers battery (every 10 s while connected) and reconnect probes (every 3 s while disconnected).
 
 ## Dependencies
 

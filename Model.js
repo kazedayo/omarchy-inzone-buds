@@ -58,6 +58,17 @@ function parseGetAll(raw) {
   return out
 }
 
+// `zoneout --monitor` lines: "Event: nc_mode -> 1 (Noise Cancelling)",
+// "Event: mic_muted -> On" (bools print as On/Off, ints may carry a suffix).
+function parseEvent(line) {
+  var m = String(line || "").match(/^Event:\s*(\w+)\s*->\s*(\S+)/)
+  if (!m) return null
+  var name = m[1]
+  if (name === "mic_muted") return { name: name, value: /^on$/i.test(m[2]) ? 1 : 0 }
+  var value = parseInt(m[2], 10)
+  return isFinite(value) ? { name: name, value: value } : null
+}
+
 function clamp(value, min, max) {
   var n = parseInt(value, 10)
   return isFinite(n) ? Math.max(min, Math.min(max, n)) : min

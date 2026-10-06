@@ -31,6 +31,9 @@ Panel {
   property int activeFetchGen: 0
   // ponytail: one pending HID write; queue-per-field if overlapping sliders lag
   property var pendingSet: null
+  // Last non-event line from the monitor ("Listening..." / "Error: ...") — feeds
+  // errorStatus() when the stream dies.
+  property string lastMonitorLine: ""
 
   readonly property var ncModes: [
     { id: 0, label: "Off" },
@@ -83,6 +86,32 @@ Panel {
     if (opened) close()
   }
 
+  // Long-running event stream. Its exit doubles as instant disconnect
+  // detection; the 10 s battery poll remains the backstop. Coexists with
+  // --get-all/--set (hidraw sharing verified).
+  Process {
+    id: monitorProc
+    running: false
+    command: ["env", "PYTHONUNBUFFERED=1", root.zoneoutBin, "--device", "buds", "--monitor"]
+    stdout: SplitParser {
+      onRead: function(line) {
+        if (/^(Listening|Error:)/.test(line)) {
+          root.lastMonitorLine = line
+          return
+        }
+        var ev = Model.parseEvent(line)
+        if (ev) root.handleEvent(ev.name, ev.value)
+      }
+    }
+    stderr: StdioCollector { id: monitorStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (!root.ownsMonitor() || !root.connected) return
+      var raw = root.lastMonitorLine + "\n" + monitorStderr.text
+      root.markDisconnected(raw)
+      root.broadcast("markDisconnected", raw)
+    }
+  }
+
   // A bar surface exists per monitor, so relay to every live instance of this
   // widget — otherwise a change made on one screen leaves the others stale.
   // Extra arguments are forwarded to the target method.
@@ -99,6 +128,37 @@ Panel {
     else if (name === "volume") volume = value
     else if (name === "balance") balance = value
     else if (name === "sidetone") sidetone = value
+  }
+
+  // Event-stream counterpart of applyStatus: instant state for changes made
+  // on the buds themselves or by other tools (sidetone has no event id).
+  function applyEvent(name, value) {
+    connected = true
+    lastError = ""
+    if (name === "mic_muted") micMuted = !!value
+    else if (name === "nc_mode") ncMode = value
+    else if (name === "volume" && !dragging(volumeSlider)) volume = value
+    else if (name === "balance" && !dragging(balanceSlider)) balance = value
+  }
+
+  function handleEvent(name, value) {
+    applyEvent(name, value)
+    broadcast("applyEvent", name, value)
+  }
+
+  // One instance owns the event stream (moduleWidgets order), same as the
+  // poll timer; events are broadcast to the sibling instances.
+  function ownsMonitor() {
+    var items = bar && typeof bar.moduleWidgets === "function" ? bar.moduleWidgets(moduleName) : [root]
+    return items[0] === root
+  }
+
+  // PYTHONUNBUFFERED is load-bearing: piped python block-buffers stdout and
+  // events never reach the parser.
+  function startMonitor() {
+    if (monitorProc.running) return
+    lastMonitorLine = ""
+    monitorProc.running = true
   }
 
   function setVar(name, value) {
@@ -136,6 +196,7 @@ Panel {
 
   Component.onCompleted: refresh()
   onOpenedChanged: if (opened) refresh()
+  onConnectedChanged: if (connected && ownsMonitor()) startMonitor()
 
   Process {
     id: getProc
@@ -193,15 +254,16 @@ Panel {
   }
 
   // Adaptive poll: fast reconnect probe while down, slow battery refresh
-  // while up. One instance polls (moduleWidgets order); broadcast() syncs
-  // the rest. refresh() no-ops while a fetch is already running.
+  // while up (the event stream carries state; battery has no events). One
+  // instance polls and owns the monitor (moduleWidgets order); broadcast()
+  // syncs the rest. refresh() no-ops while a fetch is already running.
   Timer {
     interval: root.connected ? 10000 : 3000
     repeat: true
     running: true
     onTriggered: {
-      var items = root.bar && typeof root.bar.moduleWidgets === "function" ? root.bar.moduleWidgets(root.moduleName) : [root]
-      if (items[0] !== root) return
+      if (!root.ownsMonitor()) return
+      if (root.connected) root.startMonitor()
       root.refresh()
     }
   }
